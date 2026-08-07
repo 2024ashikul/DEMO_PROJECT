@@ -1,0 +1,47 @@
+name: Deploy to Hugging Face Spaces
+
+on:
+  push:
+    branches:
+      - main  # Trigger deploy whenever code is pushed to main branch
+
+jobs:
+  # ── JOB 1: RUN TESTS FIRST ──────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements-dev.txt
+      - run: pytest tests/ -v
+
+  # ── JOB 2: DEPLOY TO HUGGING FACE SPACES ────────────────────────────────────
+  deploy:
+    needs: [test]  # ONLY deploy if tests pass!
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required to push full git history
+
+      - name: 🚀 Push to Hugging Face Spaces
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # 1. Configure git credentials
+          git config --global user.email "ci@github.com"
+          git config --global user.name "GitHub Actions"
+
+          # 2. Add Hugging Face Space as a remote target
+          # REPLACE 'YOUR_USERNAME/YOUR_SPACE_NAME' with your HF details!
+          git remote add hf https://YOUR_USERNAME:$HF_TOKEN@huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME
+
+          # 3. Force push code from GitHub main branch to Hugging Face main branch
+          git push -f hf main
