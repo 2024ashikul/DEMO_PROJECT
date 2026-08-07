@@ -1,3 +1,5 @@
+# Import OS module to read environment configuration
+import os
 # Import FastAPI web framework class, HTTP status codes, and exception classes
 from fastapi import FastAPI, HTTPException, status, Depends
 # Import FastAPI CORS middleware to allow cross-origin request handling
@@ -19,11 +21,15 @@ from app.auth import (
 # Automatically create database tables on application startup if they don't exist
 Base.metadata.create_all(bind=engine)
 
+# Read root_path from environment variable for Nginx proxy compatibility (e.g. /auth)
+root_path = os.getenv("ROOT_PATH", "")
+
 # Instantiate FastAPI application instance
 app = FastAPI(
     title="Auth Service",
     description="Microservice responsible for User Registration, Authentication, and JWT Token Management",
-    version="1.0.0"
+    version="1.0.0",
+    root_path=root_path
 )
 
 # Add CORS middleware to enable API interaction from web clients or cross-container apps

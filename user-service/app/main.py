@@ -1,3 +1,5 @@
+# Import OS module to read environment configuration
+import os
 # Import FastAPI class, HTTP exceptions, status codes, and dependency injection
 from fastapi import FastAPI, HTTPException, status, Depends
 # Import CORS middleware for microservice communication
@@ -13,11 +15,15 @@ from app.auth import verify_jwt_token, UserClaim
 # Automatically create user_profiles table if it does not exist
 Base.metadata.create_all(bind=engine)
 
+# Read root_path from environment variable for Nginx proxy compatibility (e.g. /user)
+root_path = os.getenv("ROOT_PATH", "")
+
 # Instantiate FastAPI user service app instance
 app = FastAPI(
     title="User Service",
     description="Microservice responsible for User Profile Management and User Metadata",
-    version="1.0.0"
+    version="1.0.0",
+    root_path=root_path
 )
 
 # Enable CORS for cross-service calls

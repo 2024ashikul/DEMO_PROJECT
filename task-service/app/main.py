@@ -1,3 +1,5 @@
+# Import OS module to read environment configuration
+import os
 # Import FastAPI class, HTTP status codes, exceptions, and dependency injection
 from fastapi import FastAPI, HTTPException, status, Depends
 from typing import List
@@ -13,11 +15,15 @@ from app.auth import verify_jwt_token, UserClaim
 # Create database tables automatically if missing
 Base.metadata.create_all(bind=engine)
 
+# Read root_path from environment variable for Nginx proxy compatibility (e.g. /task)
+root_path = os.getenv("ROOT_PATH", "")
+
 # Instantiate FastAPI application instance for task-service
 app = FastAPI(
     title="Task Service",
     description="Microservice responsible for Managing User Tasks, Todos, and Business Logic",
-    version="1.0.0"
+    version="1.0.0",
+    root_path=root_path
 )
 
 # Enable CORS for cross-service calls

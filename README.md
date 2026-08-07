@@ -1,19 +1,22 @@
-# FastAPI 3-Service Microservices Ecosystem with PostgreSQL & Docker Compose
+# FastAPI 3-Service Microservices Ecosystem
 
-A complete, production-ready microservices system built with **FastAPI**, **PostgreSQL**, **SQLAlchemy ORM**, **Docker**, **Docker Compose**, **Pytest**, and **GitHub Actions CI/CD**.
+A complete, production-ready microservices system built with **FastAPI**, **PostgreSQL**, **SQLAlchemy ORM**, **Docker**, **Docker Compose**, **Pytest**, and **GitHub Actions CI/CD** (with native support for **Hugging Face Spaces**).
 
 ---
 
-## 🏛️ System Architecture Overview & Database Design
+## 🏛️ System Architecture Overview
 
-The system implements the **Database-per-Service** microservice architectural pattern. Each microservice owns its isolated database running inside a centralized, persistent PostgreSQL container (`postgres-db`):
+The project supports two deployment modes out-of-the-box:
 
-| Container | Service / Database | Port | Description |
+### Mode A: Multi-Container Docker Compose (Local / VPS / Cloud Server)
+Each microservice runs in its own container, backed by a dedicated PostgreSQL container with isolated databases (`auth_db`, `user_db`, `task_db`).
+
+| Service | Container Name | Port | Description |
 | :--- | :--- | :--- | :--- |
-| **`postgres-db`** | PostgreSQL 16 DB Engine | `5432` | Runs `auth_db`, `user_db`, and `task_db` with persistent volume (`postgres_data`) |
-| **`auth-service`** | Authentication Service | `8001` | User registration, password hashing (bcrypt), JWT generation & verification -> `auth_db` |
-| **`user-service`** | User Profile Service | `8002` | User profile retrieval and profile customization -> `user_db` |
-| **`task-service`** | Task Management Service | `8003` | Task/Todo management (CRUD operations) -> `task_db` |
+| **`postgres-db`** | `postgres-db` | `5432` | Runs PostgreSQL 16 with `auth_db`, `user_db`, and `task_db` |
+| **`auth-service`** | `auth-service` | `8001` | User registration, password hashing (bcrypt), JWT generation & verification |
+| **`user-service`** | `user-service` | `8002` | User profile retrieval and profile customization |
+| **`task-service`** | `task-service` | `8003` | Task/Todo management (CRUD operations) |
 
 ```
                        +-------------------------+
@@ -38,98 +41,102 @@ The system implements the **Database-per-Service** microservice architectural pa
 
 ---
 
+### Mode B: Hugging Face Spaces Deployment (Single Container Gateway)
+Hugging Face Spaces only runs a single container on port `7860`. The root [Dockerfile](file:///Users/macbook/Documents/demo_project/DEMO_PROJECT/Dockerfile) uses **Supervisord** and **Nginx** to run all 3 microservices behind a unified gateway:
+
+```
+                    +------------------------------------+
+                    |    Hugging Face Space (Port 7860)  |
+                    |                                    |
+                    |     +------------------------+     |
+                    |     |     Nginx Gateway      |     |
+                    |     |      (Port 7860)       |     |
+                    |     +-----------+------------+     |
+                    |                 |                  |
+            +-------------------------+-------------------------+
+            |                         |                         |
+    +-------v-------+         +-------v-------+         +-------v-------+
+    | auth-service  |         | user-service  |         | task-service  |
+    |  (Port 8001)  |         |  (Port 8002)  |         |  (Port 8003)  |
+    +---------------+         +---------------+         +---------------+
+```
+
+---
+
 ## 📂 Project Structure
 
 ```
 .
+├── Dockerfile               # Root Dockerfile for Hugging Face Spaces (Port 7860)
+├── supervisord.conf         # Supervisord process manager configuration for HF Spaces
+├── nginx.conf               # Nginx reverse proxy routing /auth, /user, /task on port 7860
 ├── docker/
-│   └── init-dbs.sql         # Automatically initializes auth_db, user_db, and task_db
+│   └── init-dbs.sql         # SQL script initializing auth_db, user_db, task_db in Postgres
 ├── auth-service/
 │   ├── app/
-│   │   ├── __init__.py
 │   │   ├── auth.py          # Hashing (Bcrypt) & JWT creation/decoding
-│   │   ├── database.py      # SQLAlchemy database engine & SessionLocal
+│   │   ├── database.py      # SQLAlchemy engine
 │   │   ├── main.py          # FastAPI application & auth endpoints
-│   │   └── models.py        # SQLAlchemy UserDB model & Pydantic schemas
-│   ├── tests/
-│   │   ├── __init__.py
-│   │   └── test_auth.py     # Pytest suite for Auth Service (SQLite in-memory)
-│   ├── Dockerfile           # Docker container specification
-│   └── requirements.txt     # Python dependencies
+│   │   └── models.py        # UserDB model & Pydantic schemas
+│   └── tests/
+│       └── test_auth.py     # Pytest suite for Auth Service (SQLite in-memory)
 ├── user-service/
 │   ├── app/
-│   │   ├── __init__.py
 │   │   ├── auth.py          # Bearer JWT verification dependency
-│   │   ├── database.py      # SQLAlchemy database engine
+│   │   ├── database.py      # SQLAlchemy engine
 │   │   ├── main.py          # FastAPI profile endpoints
-│   │   └── models.py        # SQLAlchemy UserProfileDB model & Pydantic schemas
-│   ├── tests/
-│   │   ├── __init__.py
-│   │   └── test_user.py     # Pytest suite for User Service
-│   ├── Dockerfile
-│   └── requirements.txt
+│   │   └── models.py        # UserProfileDB model & Pydantic schemas
+│   └── tests/
+│       └── test_user.py     # Pytest suite for User Service
 ├── task-service/
 │   ├── app/
-│   │   ├── __init__.py
 │   │   ├── auth.py          # Bearer JWT verification dependency
-│   │   ├── database.py      # SQLAlchemy database engine
+│   │   ├── database.py      # SQLAlchemy engine
 │   │   ├── main.py          # FastAPI task management endpoints
-│   │   └── models.py        # SQLAlchemy TaskDB model & Pydantic schemas
-│   ├── tests/
-│   │   ├── __init__.py
-│   │   └── test_task.py     # Pytest suite for Task Service
-│   ├── Dockerfile
-│   └── requirements.txt
+│   │   └── models.py        # TaskDB model & Pydantic schemas
+│   └── tests/
+│       └── test_task.py     # Pytest suite for Task Service
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml           # GitHub Actions CI pipeline (Pytest + Docker build)
-│       └── deploy_hf.yml    # Deployment workflow with pre-deploy testing
+│       └── deploy_hf.yml    # Hugging Face deployment pipeline
 ├── docker-compose.yml       # 4-Container Docker Compose configuration
 └── README.md                # Documentation & Usage Guide
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 How to Run & Deploy
 
-### 1. Running with Docker Compose (Recommended)
+### Option 1: Deploying to Hugging Face Spaces (Automatic via CI/CD)
+1. Push your repository to GitHub `main` branch.
+2. Ensure secret `HF_TOKEN` is set in your GitHub Repository Secrets.
+3. The `.github/workflows/deploy_hf.yml` action will run all Pytest suites and push the code directly to Hugging Face.
+4. Hugging Face Spaces will build the root `Dockerfile` and expose all microservices on port `7860`:
+   - Landing Dashboard: `https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE/`
+   - Auth Service: `https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE/auth/docs`
+   - User Service: `https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE/user/docs`
+   - Task Service: `https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE/task/docs`
 
-To build and launch PostgreSQL and all 3 microservices concurrently:
+---
+
+### Option 2: Running locally with Docker Compose
 
 ```bash
 docker compose up --build -d
 ```
 
-Check container status and health checks:
+Check running status:
 ```bash
 docker compose ps
 ```
 
-View container logs:
-```bash
-docker compose logs -f
-```
-
-Stop services:
-```bash
-docker compose down
-```
-
 ---
 
-### 2. Running & Testing Locally with Pytest
+### Option 3: Running Unit Tests locally with Pytest
 
-Unit tests run isolated against lightning-fast in-memory SQLite (`sqlite:///:memory:`) so you don't need a live database server running during test execution:
-
-#### Install dependencies into local environment:
 ```bash
-pip install -r auth-service/requirements.txt
-pip install -r user-service/requirements.txt
-pip install -r task-service/requirements.txt
-```
-
-#### Run All Test Suites:
-```bash
+source .venv/bin/activate
 (cd auth-service && PYTHONPATH=. pytest tests/ -v)
 (cd user-service && PYTHONPATH=. pytest tests/ -v)
 (cd task-service && PYTHONPATH=. pytest tests/ -v)
@@ -137,56 +144,20 @@ pip install -r task-service/requirements.txt
 
 ---
 
-## 🧪 Testing the APIs (cURL Examples)
+## 🧪 cURL Testing Commands (Hugging Face Spaces vs Docker Compose)
 
-### Step 1: Register a New User (`auth-service` -> `auth_db`)
-```bash
-curl -X POST "http://localhost:8001/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "johndoe",
-    "email": "johndoe@example.com",
-    "password": "mysecretpassword"
-  }'
-```
+### 1. Register User
+- **HF Spaces:** `curl -X POST "https://<HF_SPACE_URL>/auth/register"`
+- **Docker Compose:** `curl -X POST "http://localhost:8001/register"`
 
-### Step 2: Login to Obtain JWT Token (`auth-service`)
-```bash
-curl -X POST "http://localhost:8001/token" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "johndoe",
-    "password": "mysecretpassword"
-  }'
-```
-*Response:*
-```json
-{
-  "access_token": "<YOUR_JWT_TOKEN>",
-  "token_type": "bearer"
-}
-```
+### 2. Login to Obtain Token
+- **HF Spaces:** `curl -X POST "https://<HF_SPACE_URL>/auth/token"`
+- **Docker Compose:** `curl -X POST "http://localhost:8001/token"`
 
-### Step 3: Fetch User Profile (`user-service` -> `user_db`)
-```bash
-curl -X GET "http://localhost:8002/users/profile" \
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
-```
+### 3. Get Profile
+- **HF Spaces:** `curl -X GET "https://<HF_SPACE_URL>/user/users/profile" -H "Authorization: Bearer <TOKEN>"`
+- **Docker Compose:** `curl -X GET "http://localhost:8002/users/profile" -H "Authorization: Bearer <TOKEN>"`
 
-### Step 4: Create a Task (`task-service` -> `task_db`)
-```bash
-curl -X POST "http://localhost:8003/tasks" \
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Learn FastAPI & Docker",
-    "description": "Build microservices with PostgreSQL, Pytest, and CI/CD",
-    "completed": false
-  }'
-```
-
-### Step 5: Get All User Tasks (`task-service`)
-```bash
-curl -X GET "http://localhost:8003/tasks" \
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
-```
+### 4. Create Task
+- **HF Spaces:** `curl -X POST "https://<HF_SPACE_URL>/task/tasks" -H "Authorization: Bearer <TOKEN>"`
+- **Docker Compose:** `curl -X POST "http://localhost:8003/tasks" -H "Authorization: Bearer <TOKEN>"`
