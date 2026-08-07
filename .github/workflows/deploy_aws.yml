@@ -1,0 +1,82 @@
+# GitHub Actions Workflow for Deploying Microservices to AWS EC2
+name: Deploy Microservices to AWS EC2
+
+# Trigger workflow on git push to main branch OR manually via GitHub UI (workflow_dispatch)
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  # ── JOB 1: RUN PYTEST TEST SUITES FOR ALL MICROSERVICES ────────────────────
+  test:
+    name: Run Pytest Suites
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth-service, user-service, task-service]
+    steps:
+      # Step 1: Checkout repository code
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python 3.11 environment
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Step 3: Install service requirements
+      - name: 📦 Install dependencies for ${{ matrix.service }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ${{ matrix.service }}/requirements.txt
+
+      # Step 4: Run pytest for current service
+      - name: 🧪 Run Pytest for ${{ matrix.service }}
+        run: |
+          cd ${{ matrix.service }}
+          PYTHONPATH=. pytest tests/ -v
+
+  # ── JOB 2: AUTOMATIC DEPLOYMENT TO AWS EC2 VIA SSH ─────────────────────────
+  deploy:
+    name: Deploy to AWS EC2
+    needs: [test] # ONLY deploy if all Pytest suites pass!
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Connect to AWS EC2 via SSH and deploy with Docker Compose
+      - name: 🚀 SSH into AWS EC2 & Run Docker Compose
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_EC2_HOST }}
+          username: ${{ secrets.AWS_EC2_USER }}
+          key: ${{ secrets.AWS_EC2_SSH_KEY }}
+          script: |
+            # 1. Print deployment status log
+            echo "Starting deployment on AWS EC2..."
+
+            # 2. Check if repository folder exists on EC2; clone if missing or pull latest code
+            if [ ! -d "DEMO_PROJECT" ]; then
+              echo "Cloning repository on AWS EC2 for first time..."
+              git clone https://github.com/2024ashikul/DEMO_PROJECT.git
+              cd DEMO_PROJECT
+            else
+              echo "Pulling latest changes from main branch..."
+              cd DEMO_PROJECT
+              git pull origin main
+            fi
+
+            # 3. Rebuild containers in detached mode using Docker Compose
+            echo "Building and launching containers via Docker Compose..."
+            docker compose up --build -d
+
+            # 4. Remove dangling old Docker build caches to save server disk space
+            docker system prune -f
+
+            echo "AWS EC2 deployment completed successfully!"
