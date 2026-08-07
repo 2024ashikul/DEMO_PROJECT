@@ -1,3 +1,13 @@
+---
+title: FastAPI Microservices Ecosystem
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # FastAPI 3-Service Microservices Ecosystem
 
 A complete, production-ready microservices system built with **FastAPI**, **PostgreSQL**, **SQLAlchemy ORM**, **Docker**, **Docker Compose**, **Pytest**, and **GitHub Actions CI/CD** (with native support for **Hugging Face Spaces**).
@@ -42,7 +52,7 @@ Each microservice runs in its own container, backed by a dedicated PostgreSQL co
 ---
 
 ### Mode B: Hugging Face Spaces Deployment (Single Container Gateway)
-Hugging Face Spaces only runs a single container on port `7860`. The root [Dockerfile](file:///Users/macbook/Documents/demo_project/DEMO_PROJECT/Dockerfile) uses **Supervisord** and **Nginx** to run all 3 microservices behind a unified gateway:
+Hugging Face Spaces runs a single container listening on port `7860`. The root [Dockerfile](file:///Users/macbook/Documents/demo_project/DEMO_PROJECT/Dockerfile) uses **Supervisord** and **Nginx** to run all 3 microservices behind a unified gateway:
 
 ```
                     +------------------------------------+
@@ -101,7 +111,7 @@ Hugging Face Spaces only runs a single container on port `7860`. The root [Docke
 │       ├── ci.yml           # GitHub Actions CI pipeline (Pytest + Docker build)
 │       └── deploy_hf.yml    # Hugging Face deployment pipeline
 ├── docker-compose.yml       # 4-Container Docker Compose configuration
-└── README.md                # Documentation & Usage Guide
+└── README.md                # Documentation & Usage Guide with HF YAML Frontmatter
 ```
 
 ---
