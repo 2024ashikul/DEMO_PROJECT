@@ -1,0 +1,98 @@
+# Declare microservice containers and shared resources
+services:
+
+  # ── DATABASE SERVICE: POSTGRESQL 16 ─────────────────────────────────────────
+  db:
+    container_name: postgres-db
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    # Map container port 5432 to host port 5432
+    ports:
+      - "5432:5432"
+    # Execute SQL script on startup to auto-create auth_db, user_db, and task_db
+    volumes:
+      - ./docker/init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql
+      - postgres_data:/var/lib/postgresql/data
+    # Health check verifying PostgreSQL database readiness before microservices start
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── SERVICE 1: AUTHENTICATION SERVICE ───────────────────────────────────────
+  auth-service:
+    container_name: auth-service
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - SECRET_KEY=super-secret-jwt-key-for-demo-microservices
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/auth_db
+      - PORT=8001
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/health\")'"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── SERVICE 2: USER PROFILE SERVICE ─────────────────────────────────────────
+  user-service:
+    container_name: user-service
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - SECRET_KEY=super-secret-jwt-key-for-demo-microservices
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/user_db
+      - PORT=8002
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8002/health\")'"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    restart: unless-stopped
+
+  # ── SERVICE 3: TASK MANAGEMENT SERVICE ──────────────────────────────────────
+  task-service:
+    container_name: task-service
+    build:
+      context: ./task-service
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8003"
+    environment:
+      - SECRET_KEY=super-secret-jwt-key-for-demo-microservices
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/task_db
+      - PORT=8003
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8003/health\")'"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    restart: unless-stopped
+
+# Named persistent Docker volume for PostgreSQL database storage
+volumes:
+  postgres_data:

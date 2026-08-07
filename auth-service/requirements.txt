@@ -1,0 +1,21 @@
+# requirements.txt for auth-service
+# FastAPI framework for building async RESTful web APIs efficiently
+fastapi>=0.110.0
+# ASGI server implementation to run FastAPI apps
+uvicorn[standard]>=0.28.0
+# Data validation and settings management using Python type annotations
+pydantic>=2.7.0
+# SQLAlchemy SQL Toolkit and Object Relational Mapper (ORM)
+sqlalchemy>=2.0.0
+# PostgreSQL database adapter driver for Python
+psycopg2-binary>=2.9.0
+# PyJWT library for encoding and decoding JSON Web Tokens (JWT) safely
+PyJWT>=2.8.0
+# Bcrypt library for secure password hashing
+bcrypt>=4.0.0
+# Cryptography backend dependency for token operations
+cryptography>=42.0.5
+# Pytest testing framework for unit and integration testing
+pytest>=8.1.1
+# HTTPX async HTTP client for testing FastAPI endpoints via TestClient
+httpx>=0.27.0

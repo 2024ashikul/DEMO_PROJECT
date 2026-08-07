@@ -1,0 +1,69 @@
+# GitHub Actions Workflow Name
+name: Microservices CI Pipeline
+
+# Trigger workflow on pushes to main branch or pull requests targeting main branch
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  # ── JOB 1: RUN PYTEST TEST SUITES ACROSS ALL 3 SERVICES ─────────────────────
+  test-microservices:
+    name: Run Pytest Suites
+    runs-on: ubuntu-latest
+
+    # Matrix strategy to test all 3 services concurrently
+    strategy:
+      matrix:
+        service: [auth-service, user-service, task-service]
+
+    steps:
+      # Step 1: Checkout repository source code
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python 3.11 environment
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+          cache-dependency-path: '${{ matrix.service }}/requirements.txt'
+
+      # Step 3: Install service dependencies
+      - name: 📦 Install Dependencies for ${{ matrix.service }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ${{ matrix.service }}/requirements.txt
+
+      # Step 4: Execute pytest test suite for the target service
+      - name: 🧪 Run Pytest for ${{ matrix.service }}
+        run: |
+          cd ${{ matrix.service }}
+          PYTHONPATH=. pytest tests/ -v --tb=short
+
+  # ── JOB 2: TEST DOCKER CONTAINER BUILDS ─────────────────────────────────────
+  build-containers:
+    name: Test Docker Compose Build
+    needs: [test-microservices] # Only run build test if Pytest job passes
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repository code
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Docker Buildx for container compilation
+      - name: 🐋 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Step 3: Build all containers specified in docker-compose.yml
+      - name: 🏗️ Test Docker Compose Build
+        run: |
+          docker compose build

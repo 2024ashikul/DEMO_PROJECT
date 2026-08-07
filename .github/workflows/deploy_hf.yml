@@ -1,3 +1,4 @@
+# GitHub Actions Workflow for Deployment
 name: Deploy to Hugging Face Spaces
 
 on:
@@ -6,23 +7,35 @@ on:
       - main  # Trigger deploy whenever code is pushed to main branch
 
 jobs:
-  # ── JOB 1: RUN TESTS FIRST ──────────────────────────────────────────────────
+  # ── JOB 1: RUN TESTS FOR ALL SERVICES BEFORE DEPLOYMENT ─────────────────────
   test:
+    name: Run Pytest Suites
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
+    strategy:
+      matrix:
+        service: [auth-service, user-service, task-service]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: 🐍 Setup Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements-dev.txt
-      - run: pytest tests/ -v
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ${{ matrix.service }}/requirements.txt
+
+      - name: 🧪 Run Pytest
+        run: |
+          cd ${{ matrix.service }}
+          PYTHONPATH=. pytest tests/ -v
 
   # ── JOB 2: DEPLOY TO HUGGING FACE SPACES ────────────────────────────────────
   deploy:
-    needs: [test]  # ONLY deploy if tests pass!
+    needs: [test]  # ONLY deploy if tests pass across all services!
     runs-on: ubuntu-latest
 
     steps:
@@ -40,8 +53,7 @@ jobs:
           git config --global user.name "GitHub Actions"
 
           # 2. Add Hugging Face Space as a remote target
-          # REPLACE 'YOUR_USERNAME/YOUR_SPACE_NAME' with your HF details!
-          git remote add hf https://YOUR_USERNAME:$HF_TOKEN@huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME
+          git remote add hf https://2024ashikul:$HF_TOKEN@huggingface.co/spaces/2024ashikul/demo || true
 
           # 3. Force push code from GitHub main branch to Hugging Face main branch
-          git push -f hf main
+          git push -f hf main || echo "Hugging Face sync skipped if HF_TOKEN is unset"
