@@ -9,7 +9,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 # Import Pydantic model for holding extracted token claims
 from pydantic import BaseModel
 from typing import Optional
-
+# hi
 # Secret key matching the auth-service signing key
 SECRET_KEY: str = os.getenv("SECRET_KEY", "super-secret-jwt-key-for-demo-microservices")
 # Signing algorithm standard

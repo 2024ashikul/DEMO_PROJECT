@@ -51,7 +51,7 @@ jobs:
         uses: actions/checkout@v4
 
       # Step 2: Connect to AWS EC2 via SSH and deploy with Docker Compose
-      - name: 🚀 SSH into AWS EC2 & Run Docker Compose
+      - name: 🚀 SSH into AWS EC2 & Run Docker Composea
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.AWS_EC2_HOST }}
